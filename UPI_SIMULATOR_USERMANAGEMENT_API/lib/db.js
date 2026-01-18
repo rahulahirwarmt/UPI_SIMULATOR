@@ -1,10 +1,35 @@
-
 const mongoose = require("mongoose");
 
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 async function dbConnect() {
-  if (mongoose.connection.readyState >= 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log("MongoDB Connected");
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false, // Disable buffering to fail fast if no connection
+    };
+
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+    console.log("MongoDB Connected (New Connection)");
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
 }
 
 module.exports = dbConnect;

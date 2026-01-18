@@ -10,7 +10,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-dbConnect();
+// Middleware to ensure DB connection on every request (Vercel/Serverless best practice)
+app.use(async (req, res, next) => {
+  try {
+    await dbConnect();
+    next();
+  } catch (err) {
+    console.error("Database connection error:", err);
+    res.status(500).json({ error: "Database connection failed" });
+  }
+});
 
 app.use("/api/auth", require("./api/auth"));
 app.use("/api/users", require("./api/users"));
